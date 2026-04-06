@@ -12,6 +12,15 @@ RW="$SCRIPT_DIR/rw"
 echo "[magic_board] Sourcing workspaces..."
 source "$RW/install/setup.bash"
 
+# ── Kill any leftover LIDAR processes from previous runs ──────────────────────
+echo "[magic_board] Cleaning up any leftover LIDAR processes..."
+pkill -f sllidar_node  2>/dev/null && echo "  → killed stale sllidar_node" || true
+pkill -f ldlidar       2>/dev/null && echo "  → killed stale ldlidar"       || true
+pkill -f magic_board_live 2>/dev/null && echo "  → killed stale viz"        || true
+
+# Give the OS a moment to release the serial port
+sleep 1
+
 echo "[magic_board] Starting RPLIDAR A1-M8 driver..."
 ros2 run sllidar_ros2 sllidar_node \
     --ros-args \
@@ -24,11 +33,19 @@ ros2 run sllidar_ros2 sllidar_node \
 LIDAR_PID=$!
 echo "[magic_board] LIDAR driver PID: $LIDAR_PID"
 
-# Give the driver 3 seconds to connect and start publishing
-echo "[magic_board] Waiting for driver to start..."
+# Wait for driver to start and confirm it's alive
+echo "[magic_board] Waiting for driver to connect..."
 sleep 3
 
-echo "[magic_board] Opening live visualization..."
+if ! kill -0 $LIDAR_PID 2>/dev/null; then
+    echo "[magic_board] ERROR: LIDAR driver exited. Check that:"
+    echo "  • RPLIDAR A1-M8 is plugged into USB"
+    echo "  • Port is /dev/ttyUSB0  (check: ls /dev/ttyUSB*)"
+    echo "  • You have permission  (check: groups | grep dialout)"
+    exit 1
+fi
+
+echo "[magic_board] Driver is running — opening live visualization..."
 python3 "$SCRIPT_DIR/magic_board_live.py"
 
 # When the visualization window is closed, also stop the driver

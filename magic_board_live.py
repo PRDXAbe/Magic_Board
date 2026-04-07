@@ -64,6 +64,7 @@ CLUSTER_DIST   = 0.08   # (m) max gap between points to be in the same cluster
 MIN_PTS        = 2      # minimum points for a cluster to count as a ball
 MATCH_RADIUS   = 0.20   # (m) max centroid movement to match same ball across frames
 FORGET_FRAMES  = 25     # frames without a match before a track is removed
+RECOUNT_FRAMES = 8      # frames a ball must be absent before reappearance counts as new
 
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -88,13 +89,15 @@ class BallTracker:
                 if d < best_d:
                     best_d, best_t = d, t
             if best_t is not None:
+                if best_t['absent'] >= RECOUNT_FRAMES:  # absent long enough → reappearance counts as new ball
+                    self.count += 1
                 best_t['x'], best_t['y'] = cx, cy
                 best_t['present'] = True
                 best_t['absent']  = 0
             else:
                 unmatched.append((cx, cy))
 
-        # New clusters → new balls
+        # Brand-new clusters → new balls
         for cx, cy in unmatched:
             self.count += 1
             self.tracks.append({'x': cx, 'y': cy, 'present': True, 'absent': 0})

@@ -22,7 +22,9 @@ How to run:
 Configure your board dimensions below (only place you need to edit).
 """
 
+import json
 import math
+import pathlib
 import time
 
 import numpy as np
@@ -39,32 +41,47 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 
 # ══════════════════════════════════════════════════════════════════════════════
-#   CONFIGURE YOUR SETUP HERE
+#   CONFIGURATION  (edit via:  python3 configure_board.py)
 # ══════════════════════════════════════════════════════════════════════════════
 
-# Board dimensions in metres (sensor frame)
-# +X = depth into board (long axis, away from LIDAR)
-# +Y = lateral across board (short axis)
-#
-#   LIDAR is at origin, board stretches in front of it:
-#
-#        board_min_y ──────────────────────── board_max_y
-#                │                                 │
-#     LIDAR →   │   ←──────── board ──────────→   │
-#                │                                 │
-#        ────── board_min_x ─────── board_max_x ───
-#
-BOARD_MIN_X = 0.050   # near edge  (m) – just past the LIDAR body
-BOARD_MAX_X = 0.860   # far  edge  (m)
-BOARD_MIN_Y = -0.190  # left  edge (m)
-BOARD_MAX_Y = 0.190   # right edge (m)
+_CONFIG_PATH = pathlib.Path(__file__).parent / "board_config.json"
 
-# Ball detection tuning
-CLUSTER_DIST   = 0.08   # (m) max gap between points to be in the same cluster
-MIN_PTS        = 2      # minimum points for a cluster to count as a ball
-MATCH_RADIUS   = 0.20   # (m) max centroid movement to match same ball across frames
-FORGET_FRAMES  = 25     # frames without a match before a track is removed
-RECOUNT_FRAMES = 8      # frames a ball must be absent before reappearance counts as new
+_DEFAULTS = {
+    "board_min_x":    0.050,
+    "board_max_x":    0.860,
+    "board_min_y":   -0.190,
+    "board_max_y":    0.190,
+    "cluster_dist":   0.08,
+    "min_pts":        2,
+    "match_radius":   0.20,
+    "forget_frames":  25,
+    "recount_frames": 8,
+}
+
+
+def _load_config() -> dict:
+    """Load board_config.json, falling back to defaults for any missing key."""
+    cfg = dict(_DEFAULTS)
+    if _CONFIG_PATH.exists():
+        raw = json.loads(_CONFIG_PATH.read_text())
+        raw.pop("_comment", None)
+        cfg.update({k: v for k, v in raw.items() if k in _DEFAULTS})
+    else:
+        print(f"[magic_board] Warning: {_CONFIG_PATH.name} not found — using defaults.")
+    return cfg
+
+
+_cfg = _load_config()
+
+BOARD_MIN_X    = _cfg["board_min_x"]
+BOARD_MAX_X    = _cfg["board_max_x"]
+BOARD_MIN_Y    = _cfg["board_min_y"]
+BOARD_MAX_Y    = _cfg["board_max_y"]
+CLUSTER_DIST   = _cfg["cluster_dist"]
+MIN_PTS        = _cfg["min_pts"]
+MATCH_RADIUS   = _cfg["match_radius"]
+FORGET_FRAMES  = _cfg["forget_frames"]
+RECOUNT_FRAMES = _cfg["recount_frames"]
 
 # ══════════════════════════════════════════════════════════════════════════════
 

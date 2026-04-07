@@ -1,0 +1,12 @@
+{
+  "_comment": "Magic Board \u2014 edit via: python3 configure_board.py",
+  "board_min_x": 0.05,
+  "board_max_x": 1.05,
+  "board_min_y": -0.25,
+  "board_max_y": 0.25,
+  "cluster_dist": 0.08,
+  "min_pts": 2,
+  "match_radius": 0.2,
+  "forget_frames": 25,
+  "recount_frames": 8
+}

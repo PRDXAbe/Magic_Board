@@ -24,32 +24,48 @@ class AppViewModel(val projectRoot: String) {
         if (!configPath.exists()) return BoardConfig()
         return runCatching {
             val raw = configPath.readText()
-            // Simple key extraction without adding another dependency
             val w = Regex(""""board_width_mm"\s*:\s*(\d+)""").find(raw)?.groupValues?.get(1)?.toIntOrNull()
             val h = Regex(""""board_height_mm"\s*:\s*(\d+)""").find(raw)?.groupValues?.get(1)?.toIntOrNull()
+            val m = Regex(""""lidar_model"\s*:\s*"(\w+)"""").find(raw)?.groupValues?.get(1)
+                ?.let { runCatching { LidarModel.valueOf(it) }.getOrNull() }
             BoardConfig(
-                widthMm  = w ?: 1000,
-                heightMm = h ?: 500,
+                widthMm    = w ?: 1000,
+                heightMm   = h ?: 500,
+                lidarModel = m ?: LidarModel.LD19,
             )
         }.getOrDefault(BoardConfig())
     }
 
     fun saveBoardConfig(widthMm: Int, heightMm: Int) {
-        _state.update { it.copy(boardConfig = BoardConfig(widthMm, heightMm)) }
+        _state.update { it.copy(boardConfig = it.boardConfig.copy(widthMm = widthMm, heightMm = heightMm)) }
+        persistConfig()
+    }
 
-        // Patch only the two fields — preserve everything else in the JSON
+    fun setLidarModel(model: LidarModel) {
+        _state.update { it.copy(boardConfig = it.boardConfig.copy(lidarModel = model)) }
+        persistConfig()
+    }
+
+    private fun persistConfig() {
+        val cfg = _state.value.boardConfig
         scope.launch(Dispatchers.IO) {
             runCatching {
                 val current = if (configPath.exists()) configPath.readText() else "{}"
                 var updated = current
-                    .replace(Regex(""""board_width_mm"\s*:\s*\d+"""),  """"board_width_mm": $widthMm""")
-                    .replace(Regex(""""board_height_mm"\s*:\s*\d+"""), """"board_height_mm": $heightMm""")
-                // If keys didn't exist, insert before closing brace
+                    .replace(Regex(""""board_width_mm"\s*:\s*\d+"""),  """"board_width_mm": ${cfg.widthMm}""")
+                    .replace(Regex(""""board_height_mm"\s*:\s*\d+"""), """"board_height_mm": ${cfg.heightMm}""")
+                    .replace(Regex(""""lidar_model"\s*:\s*"\w+""""),   """"lidar_model": "${cfg.lidarModel.name}"""")
                 if (!updated.contains("board_width_mm")) {
                     updated = updated.trimEnd().trimEnd('}') +
                         """,
-  "board_width_mm": $widthMm,
-  "board_height_mm": $heightMm
+  "board_width_mm": ${cfg.widthMm},
+  "board_height_mm": ${cfg.heightMm}
+}"""
+                }
+                if (!updated.contains("lidar_model")) {
+                    updated = updated.trimEnd().trimEnd('}') +
+                        """,
+  "lidar_model": "${cfg.lidarModel.name}"
 }"""
                 }
                 configPath.writeText(updated)
@@ -63,8 +79,9 @@ class AppViewModel(val projectRoot: String) {
         if (_state.value.isDriverRunning) return
         _state.update { it.copy(isDriverRunning = true, errorMessage = null) }
 
+        val model = _state.value.boardConfig.lidarModel
         scope.launch(Dispatchers.IO) {
-            runCatching { processManager.startDriver() }.onFailure { e ->
+            runCatching { processManager.startDriver(model) }.onFailure { e ->
                 _state.update { it.copy(errorMessage = "Driver failed: ${e.message}") }
             }
         }

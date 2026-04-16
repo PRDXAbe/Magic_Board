@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.Alignment
 import com.pixelboard.AppUiState
 import com.pixelboard.AppViewModel
+import com.pixelboard.LidarModel
 
 @Composable
 fun ControlPanel(
@@ -36,6 +37,14 @@ fun ControlPanel(
     ) {
         // ── Section: Driver control ───────────────────────────────────────────
         SectionLabel("DRIVER")
+        Spacer(Modifier.height(8.dp))
+
+        LidarModelSelector(
+            selected  = state.boardConfig.lidarModel,
+            enabled   = !state.isDriverRunning,
+            onSelect  = { viewModel.setLidarModel(it) },
+        )
+
         Spacer(Modifier.height(8.dp))
 
         StartStopButton(
@@ -93,8 +102,9 @@ fun ControlPanel(
         Spacer(Modifier.weight(1f))
 
         // ── Footer ────────────────────────────────────────────────────────────
+        val model = state.boardConfig.lidarModel
         Text(
-            text       = "LD19 · /dev/ttyUSB0 · 230400",
+            text       = "${model.displayName} · /dev/ttyUSB0 · ${model.baudRate}",
             fontSize   = 10.sp,
             color      = TextMuted,
             fontFamily = FontFamily.Monospace,
@@ -103,6 +113,49 @@ fun ControlPanel(
 }
 
 // ── Sub-composables ────────────────────────────────────────────────────────────
+
+@Composable
+private fun LidarModelSelector(
+    selected: LidarModel,
+    enabled:  Boolean,
+    onSelect: (LidarModel) -> Unit,
+) {
+    Row(
+        modifier              = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        LidarModel.entries.forEach { model ->
+            val isSelected = model == selected
+            Button(
+                onClick  = { onSelect(model) },
+                enabled  = enabled,
+                modifier = Modifier.weight(1f).height(34.dp),
+                shape    = RoundedCornerShape(8.dp),
+                colors   = ButtonDefaults.buttonColors(
+                    containerColor         = if (isSelected) AccentCyan       else SurfaceElevated,
+                    contentColor           = if (isSelected) Color.Black      else TextSecondary,
+                    disabledContainerColor = if (isSelected) AccentCyan.copy(alpha = 0.35f) else SurfaceElevated,
+                    disabledContentColor   = if (isSelected) Color.Black.copy(alpha = 0.45f) else TextMuted,
+                ),
+            ) {
+                Text(
+                    text       = model.displayName,
+                    fontSize   = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
+        }
+    }
+    if (!enabled) {
+        Spacer(Modifier.height(2.dp))
+        Text(
+            text     = "Stop driver to switch model",
+            fontSize = 9.sp,
+            color    = TextMuted,
+        )
+    }
+}
 
 @Composable
 private fun BoardDimensionEditor(

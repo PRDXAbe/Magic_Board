@@ -11,4 +11,6 @@
   "match_radius": 0.2,
   "forget_frames": 25,
   "recount_frames": 8
+,
+  "lidar_model": "A1_M8"
 }

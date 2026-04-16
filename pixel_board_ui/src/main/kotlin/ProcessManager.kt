@@ -8,7 +8,9 @@ import java.io.File
 
 /**
  * Manages the two child processes:
- *  1. LD19 driver  — `ros2 launch ldlidar_stl_ros2 ld19.launch.py`
+ *  1. LiDAR driver — command depends on selected [LidarModel]:
+ *       LD19  → `ros2 launch ldlidar_stl_ros2 ld19.launch.py`
+ *       A1_M8 → `ros2 launch sllidar_ros2 sllidar_a1_launch.py`
  *  2. ROS bridge   — `python3 ros_bridge.py`  (emits JSON to stdout)
  *
  * Both processes are launched with `bash -c "source setup.bash && <cmd>"`
@@ -23,12 +25,13 @@ class ProcessManager(private val projectRoot: String) {
 
     // ── Driver ────────────────────────────────────────────────────────────────
 
-    fun startDriver() {
+    fun startDriver(model: LidarModel) {
         stopDriver()
-        val cmd = listOf(
-            "bash", "-c",
-            "source $setupBash && ros2 launch ldlidar_stl_ros2 ld19.launch.py"
-        )
+        val launchCmd = when (model) {
+            LidarModel.LD19  -> "ros2 launch ldlidar_stl_ros2 ld19.launch.py"
+            LidarModel.A1_M8 -> "ros2 launch sllidar_ros2 sllidar_a1_launch.py"
+        }
+        val cmd = listOf("bash", "-c", "source $setupBash && $launchCmd")
         driverProcess = ProcessBuilder(cmd)
             .redirectErrorStream(true)
             .directory(File(projectRoot))
@@ -38,9 +41,10 @@ class ProcessManager(private val projectRoot: String) {
     fun stopDriver() {
         driverProcess?.destroy()
         driverProcess = null
-        // Also kill any stale ros2 nodes
+        // Kill stale nodes for either driver
         runCatching {
-            ProcessBuilder("bash", "-c", "pkill -f ldlidar_stl_ros2_node 2>/dev/null || true")
+            ProcessBuilder("bash", "-c",
+                "pkill -f 'ldlidar_stl_ros2_node|sllidar_node' 2>/dev/null || true")
                 .start().waitFor()
         }
     }

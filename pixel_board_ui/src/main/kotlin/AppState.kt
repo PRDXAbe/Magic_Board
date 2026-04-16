@@ -3,6 +3,23 @@ package com.pixelboard
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+// ── LiDAR model selection ─────────────────────────────────────────────────────
+
+enum class LidarModel {
+    LD19,   // ldlidar_stl_ros2 · 230400 baud
+    A1_M8;  // sllidar_ros2     · 115200 baud
+
+    val displayName get() = when (this) {
+        LD19  -> "LD19"
+        A1_M8 -> "A1-M8"
+    }
+
+    val baudRate get() = when (this) {
+        LD19  -> 230400
+        A1_M8 -> 115200
+    }
+}
+
 // ── JSON wire types ───────────────────────────────────────────────────────────
 
 @Serializable
@@ -56,8 +73,9 @@ data class BoardFrame(
  * Mirrors the entries in board_config.json that the UI can modify.
  */
 data class BoardConfig(
-    val widthMm:  Int   = 1000,
-    val heightMm: Int   = 500,
+    val widthMm:    Int        = 1000,
+    val heightMm:   Int        = 500,
+    val lidarModel: LidarModel = LidarModel.LD19,
 )
 
 data class AppUiState(
